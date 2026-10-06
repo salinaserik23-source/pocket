@@ -469,24 +469,22 @@ body.sheet-open .toast { display: none; }   /* never show the bar while the shee
 
 
 <script>
-/* Clean up the archived v1 PWA: unregister its service worker(s) and drop its caches.
-   Scoped: only registrations whose scope is under THIS app's directory are touched (other apps on the same
-   origin, e.g. /calorie-tracker/, are left alone), and only caches named 'expense-app-shell*' are deleted. */
+/* Delete caches left by the archived v1 PWA ('expense-app-shell*' only; no other cache is touched),
+   then register the offline service worker for this folder (scope './', never the origin root). */
 (function () {
   try {
     if (location.protocol === 'file:') return;
-    var appDir = new URL('./', location.href).href;      // e.g. https://host/pocket/ (always ends with '/')
-    if ('serviceWorker' in navigator && navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
-      navigator.serviceWorker.getRegistrations().then(function (regs) {
-        regs.forEach(function (r) {
-          if (r && typeof r.scope === 'string' && r.scope.indexOf(appDir) === 0) r.unregister();
-        });
-      }).catch(function () {});
-    }
     if (typeof caches !== 'undefined' && caches && caches.keys) {
       caches.keys().then(function (keys) {
         keys.filter(function (k) { return k.indexOf('expense-app-shell') === 0; }).forEach(function (k) { caches.delete(k); });
       }).catch(function () {});
+    }
+    if ('serviceWorker' in navigator && navigator.serviceWorker) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js', {scope: './'}).catch(function (err) {
+          console.info('[pocket] offline mode unavailable:', err && err.message);
+        });
+      });
     }
   } catch (_) {}
 })();
